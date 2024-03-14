@@ -11,8 +11,7 @@ import IOExtern from "./IO.extern?raw";
 
 type Result<T, E> = { type: "OK"; value: T } | { type: "ERR"; error: E };
 
-type MainTask = () => VoidFunction;
-const getCompileResult = (main: string): Result<MainTask, JSX.Element> => {
+const getCompileResult = (main: string): Result<string, JSX.Element> => {
   const parsed = parse(main);
 
   if (!parsed.ok) {
@@ -64,18 +63,25 @@ const getCompileResult = (main: string): Result<MainTask, JSX.Element> => {
   );
 
   try {
-    // HACK!
-    const executor = "Main$main.exec()";
     const compiled = compileProject(typedProject, {
       externs: {
         IO: IOExtern,
         ...externs,
       },
-      // Hack!
-    }).replace(executor, `return ${executor};`);
+    });
 
-    const run = new Function(compiled) as MainTask;
-    return { type: "OK", value: run };
+    // HACK!
+    const replaced = compiled.replace(
+      "Main$main.exec()",
+      `Main$main.exec(() => {
+  postMessage({ type: "exit" });
+})`
+    );
+
+    const blob = new Blob([replaced], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    return { type: "OK", value: url };
   } catch (err) {
     const error = (
       <div>
@@ -89,7 +95,7 @@ const getCompileResult = (main: string): Result<MainTask, JSX.Element> => {
   }
 };
 
-const IO: FC<{ type: string; children: ReactNode }> = ({ type, children }) => (
+const IO: FC<{ type: string; children?: ReactNode }> = ({ type, children }) => (
   <span>
     <pre style={{ display: "inline", color: "#a2a2a2" }}>[{type}]</pre>{" "}
     {children}
@@ -100,29 +106,26 @@ const Print: FC<{ value: string }> = ({ value }) => (
   <IO type="print">{value}</IO>
 );
 
-const Readline: FC<{ id: number }> = ({ id }) => {
+const Readline: FC<{
+  onResolve: (value: string) => void;
+  abortSignal: AbortSignal;
+}> = ({ onResolve, abortSignal }) => {
   const [value, setValue] = useState("");
   const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function onCancel(e: any) {
-      if (e.detail.id !== id) {
-        return;
-      }
+    function onCancel() {
       setDisabled(true);
     }
-    document.addEventListener("IO:readline:cancel", onCancel);
-    return () => document.removeEventListener("IO:readline:cancel", onCancel);
+    abortSignal.addEventListener("abort", onCancel);
+    return () => abortSignal.removeEventListener("abort", onCancel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleSubmit(evt: FormEvent) {
     evt.preventDefault();
-
-    document.dispatchEvent(
-      new CustomEvent("IO:readline:resolve", { detail: { value, id } })
-    );
-
+    onResolve(value);
     setDisabled(true);
   }
 
@@ -141,49 +144,92 @@ const Readline: FC<{ id: number }> = ({ id }) => {
   );
 };
 
-export const Runner: FC<{ run: MainTask; main: string }> = ({ run, main }) => {
+export const Runner: FC<{ workerUrl: string; main: string }> = ({
+  workerUrl,
+  main,
+}) => {
+  const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<JSX.Element[]>([]);
-  const cancelRef = useRef<VoidFunction | undefined>();
+  const currentWorker = useRef<Worker | undefined>();
+
+  function reset() {
+    currentWorker.current?.terminate();
+    setRunning(false);
+    setLogs([]);
+  }
 
   useEffect(() => {
-    cancelRef.current?.();
-    setLogs([]);
+    reset();
   }, [main]);
 
-  useEffect(() => {
-    function onPrintln(e: Event) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { value } = (e as any).detail;
-      setLogs((logs) => [...logs, <Print value={value} />]);
-    }
-    document.addEventListener("IO:println", onPrintln);
+  // eslint-disable-next-line no-inner-declarations
+  function run() {
+    reset();
 
-    function onReadline(e: Event) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { id } = (e as any).detail;
-      setLogs((logs) => [...logs, <Readline key={id} id={id} />]);
-    }
+    setRunning(true);
+    const w = new Worker(workerUrl);
 
-    document.addEventListener("IO:readline", onReadline);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    w.addEventListener("message", (msg: any) => {
+      switch (msg.data.type) {
+        case "IO:println":
+          setLogs((logs) => [...logs, <Print value={msg.data.value} />]);
+          break;
 
-    return () => {
-      document.removeEventListener("IO:println", onPrintln);
-      document.removeEventListener("IO:readline", onReadline);
-    };
-  }, []);
+        case "IO:readline": {
+          const id = msg.data.id;
+          const abortController = new AbortController();
+
+          w.addEventListener("message", (msg) => {
+            if (msg.data.type === "IO:readline:cancel" && msg.data.id === id) {
+              abortController.abort();
+            }
+          });
+
+          setLogs((logs) => [
+            ...logs,
+            <Readline
+              key={id}
+              abortSignal={abortController.signal}
+              onResolve={(value) => {
+                w.postMessage({
+                  type: "IO:readline:resolve",
+                  id: id,
+                  value,
+                });
+              }}
+            />,
+          ]);
+          break;
+        }
+
+        case "exit":
+          setRunning(false);
+          setLogs((logs) => [...logs, <IO type="exit" />]);
+          break;
+
+        default:
+          break;
+      }
+    });
+
+    currentWorker.current = w;
+  }
 
   return (
     <div>
-      <button
-        onClick={() => {
-          cancelRef.current?.();
-          setLogs([]);
-          const cancel = run();
-          cancelRef.current = cancel;
-        }}
-      >
-        Run program
-      </button>
+      {running ? (
+        <button
+          onClick={() => {
+            currentWorker.current?.terminate();
+            setRunning(false);
+          }}
+        >
+          Stop
+        </button>
+      ) : (
+        <button onClick={run}>Run program</button>
+      )}
       <br />
       {logs.length === 0 ? null : <h4>IO:</h4>}
       <ul>
@@ -200,7 +246,7 @@ export const Output: FC<{ main: string }> = ({ main }) => {
 
   switch (res.type) {
     case "OK":
-      return <Runner run={res.value} main={main} />;
+      return <Runner workerUrl={res.value} main={main} />;
     case "ERR":
       return res.error;
   }

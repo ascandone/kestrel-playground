@@ -73,6 +73,7 @@ export const App: FC = () => {
               setMain(value);
             }}
             options={{
+              guides: { indentation: false },
               fontFamily: "Fira code",
               minimap: { enabled: false },
               scrollbar: { vertical: "hidden" },

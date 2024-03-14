@@ -1,18 +1,11 @@
 function IO$println(value) {
   return new Task$Task((resolve) => {
-    const evt = new CustomEvent("IO:println", { detail: { value } });
-    document.dispatchEvent(evt);
+    postMessage({ type: "IO:println", value });
     resolve(null);
   });
 }
 
-function IO$print(value) {
-  return new Task$Task((resolve) => {
-    const evt = new CustomEvent("IO:println", { detail: { value } });
-    document.dispatchEvent(evt);
-    resolve(null);
-  });
-}
+const IO$print = IO$println;
 
 function IO$exit(code) {
   return new Task$Task(() => {
@@ -22,17 +15,18 @@ function IO$exit(code) {
 
 const IO$readline = new Task$Task((resolve) => {
   const id = Math.ceil(Math.random() * 10e9);
-  document.dispatchEvent(new CustomEvent("IO:readline", { detail: { id } }));
-  function onResolve(evt) {
-    if (evt.detail.id === id) {
-      resolve(evt.detail.value);
+  postMessage({ type: "IO:readline", id });
+
+  function onResolve(msg) {
+    if (msg.data.type === "IO:readline:resolve" && msg.data.id === id) {
+      resolve(msg.data.value);
     }
   }
-  document.addEventListener("IO:readline:resolve", onResolve);
+
+  self.addEventListener("message", onResolve);
+
   return () => {
-    document.removeEventListener("IO:readline:resolve", onResolve);
-    document.dispatchEvent(
-      new CustomEvent("IO:readline:cancel", { detail: { id } })
-    );
+    postMessage({ type: "IO:readline:cancel", id });
+    self.removeEventListener("message", onResolve);
   };
 });
