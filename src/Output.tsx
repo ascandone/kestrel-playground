@@ -16,7 +16,7 @@ const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
 
   if (!parsed.ok) {
     const error = (
-      <div style={{ padding: "2rem" }}>
+      <div>
         <b>Parsing error:</b>
         <br />
         <pre style={{ whiteSpace: "pre-wrap" }}>
@@ -41,7 +41,7 @@ const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
     const convert = new Convert();
 
     const error = (
-      <div style={{ padding: "2rem" }}>
+      <div>
         {errors.map((err, index) => {
           const msg = errorInfoToString(main, err);
           return (
@@ -75,7 +75,7 @@ const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
     return { type: "OK", value: () => run() };
   } catch (err) {
     const error = (
-      <div style={{ padding: "2rem" }}>
+      <div>
         <b>Compilation error:</b>
         <br />
         <pre style={{ whiteSpace: "pre-wrap" }}>{(err as Error).message}</pre>
@@ -147,19 +147,17 @@ export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
   }, []);
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <p>No errors found ✅</p>
-      <hr />
+    <div>
       <button
         onClick={() => {
           setLogs([]);
           run();
         }}
       >
-        Run
+        Run program
       </button>
       <br />
-      <h4>IO:</h4>
+      {logs.length === 0 ? null : <h4>IO:</h4>}
       <ul>
         {logs.map((l, i) => (
           <li key={i}>{l}</li>
