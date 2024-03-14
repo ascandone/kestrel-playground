@@ -18,7 +18,7 @@ pub let main = {
   let#await _unit = IO.println(
     "You have " <> String.from_int(max_time) <> " seconds to input your name:",
   );
-  let#Task.await result = Async.race([
+  let#await result = Async.race([
     Task.map(IO.readline, Ok),
     Task.map(countdown(max_time), Err),
   ]);
