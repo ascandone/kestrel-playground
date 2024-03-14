@@ -105,7 +105,8 @@ const Readline: FC<{ id: number }> = ({ id }) => {
   const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
-    function onCancel(e) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function onCancel(e: any) {
       if (e.detail.id !== id) {
         return;
       }
