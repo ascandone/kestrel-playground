@@ -149,6 +149,7 @@ export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
   return (
     <div style={{ padding: "2rem" }}>
       <p>No errors found ✅</p>
+      <hr />
       <button
         onClick={() => {
           setLogs([]);
@@ -157,8 +158,8 @@ export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
       >
         Run
       </button>
-      <hr />
-      Logs:
+      <br />
+      <h4>IO:</h4>
       <ul>
         {logs.map((l, i) => (
           <li key={i}>{l}</li>

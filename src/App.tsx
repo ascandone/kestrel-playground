@@ -7,7 +7,7 @@ const DEFAULT_INPUT = `import IO
 import Task.{await}
 
 pub let main = {
-  let#await _ = IO.println("What is your name?");
+  let#await _unit = IO.println("What is your name?");
   let#await name = IO.readline;
   let#await _unit = IO.println("Nice to meet you, " <> name);
   Task.none
