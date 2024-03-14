@@ -21,12 +21,18 @@ function IO$exit(code) {
 }
 
 const IO$readline = new Task$Task((resolve) => {
-  document.dispatchEvent(new CustomEvent("IO:readline"));
+  const id = Math.ceil(Math.random() * 10e9);
+  document.dispatchEvent(new CustomEvent("IO:readline", { detail: { id } }));
   function onResolve(evt) {
-    resolve(evt.detail.value);
+    if (evt.detail.id === id) {
+      resolve(evt.detail.value);
+    }
   }
   document.addEventListener("IO:readline:resolve", onResolve);
   return () => {
     document.removeEventListener("IO:readline:resolve", onResolve);
+    document.dispatchEvent(
+      new CustomEvent("IO:readline:cancel", { detail: { id } })
+    );
   };
 });

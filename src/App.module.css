@@ -14,3 +14,8 @@
   flex: 1;
   flex-shrink: 0;
 }
+
+ul {
+  list-style-type: none;
+  padding-left: 0;
+}

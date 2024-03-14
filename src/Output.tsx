@@ -1,4 +1,4 @@
-import { FC, FormEvent, useEffect, useState } from "react";
+import { FC, FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import {
   parse,
   typecheckProject,
@@ -11,7 +11,8 @@ import IOExtern from "./IO.extern?raw";
 
 type Result<T, E> = { type: "OK"; value: T } | { type: "ERR"; error: E };
 
-const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
+type MainTask = () => VoidFunction;
+const getCompileResult = (main: string): Result<MainTask, JSX.Element> => {
   const parsed = parse(main);
 
   if (!parsed.ok) {
@@ -63,16 +64,18 @@ const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
   );
 
   try {
+    // HACK!
+    const executor = "Main$main.exec()";
     const compiled = compileProject(typedProject, {
       externs: {
         IO: IOExtern,
         ...externs,
       },
-    });
+      // Hack!
+    }).replace(executor, `return ${executor};`);
 
-    const run = new Function(compiled);
-
-    return { type: "OK", value: () => run() };
+    const run = new Function(compiled) as MainTask;
+    return { type: "OK", value: run };
   } catch (err) {
     const error = (
       <div>
@@ -86,58 +89,80 @@ const getCompileResult = (main: string): Result<VoidFunction, JSX.Element> => {
   }
 };
 
-const Print: FC<{ value: string }> = ({ value }) => (
+const IO: FC<{ type: string; children: ReactNode }> = ({ type, children }) => (
   <span>
-    <pre style={{ display: "inline" }}>[log]</pre> {value}
+    <pre style={{ display: "inline", color: "#a2a2a2" }}>[{type}]</pre>{" "}
+    {children}
   </span>
 );
 
-const Readline: FC = () => {
+const Print: FC<{ value: string }> = ({ value }) => (
+  <IO type="print">{value}</IO>
+);
+
+const Readline: FC<{ id: number }> = ({ id }) => {
   const [value, setValue] = useState("");
-  const [sent, setSent] = useState(false);
+  const [disabled, setDisabled] = useState(false);
+
+  useEffect(() => {
+    function onCancel(e) {
+      if (e.detail.id !== id) {
+        return;
+      }
+      setDisabled(true);
+    }
+    document.addEventListener("IO:readline:cancel", onCancel);
+    return () => document.removeEventListener("IO:readline:cancel", onCancel);
+  }, []);
 
   function handleSubmit(evt: FormEvent) {
     evt.preventDefault();
 
     document.dispatchEvent(
-      new CustomEvent("IO:readline:resolve", { detail: { value } })
+      new CustomEvent("IO:readline:resolve", { detail: { value, id } })
     );
 
-    setSent(true);
+    setDisabled(true);
   }
 
   return (
-    <span>
-      <pre style={{ display: "inline" }}>[readline]</pre>{" "}
+    <IO type="readline">
       <form style={{ display: "inline" }} onSubmit={handleSubmit}>
         <input
           type="text"
-          disabled={sent}
+          disabled={disabled}
           autoFocus
           value={value}
           onInput={(e) => setValue(e.currentTarget.value)}
         />
       </form>
-    </span>
+    </IO>
   );
 };
 
-export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
+export const Runner: FC<{ run: MainTask; main: string }> = ({ run, main }) => {
   const [logs, setLogs] = useState<JSX.Element[]>([]);
+  const cancelRef = useRef<VoidFunction | undefined>();
+
+  useEffect(() => {
+    cancelRef.current?.();
+    setLogs([]);
+  }, [main]);
 
   useEffect(() => {
     function onPrintln(e: Event) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const value = (e as any).detail.value;
+      const { value } = (e as any).detail;
       setLogs((logs) => [...logs, <Print value={value} />]);
     }
     document.addEventListener("IO:println", onPrintln);
 
-    function onReadline() {
+    function onReadline(e: Event) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-      setLogs((logs) => [...logs, <Readline key={Math.random()} />]);
+      const { id } = (e as any).detail;
+      setLogs((logs) => [...logs, <Readline key={id} id={id} />]);
     }
+
     document.addEventListener("IO:readline", onReadline);
 
     return () => {
@@ -150,8 +175,10 @@ export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
     <div>
       <button
         onClick={() => {
+          cancelRef.current?.();
           setLogs([]);
-          run();
+          const cancel = run();
+          cancelRef.current = cancel;
         }}
       >
         Run program
@@ -172,7 +199,7 @@ export const Output: FC<{ main: string }> = ({ main }) => {
 
   switch (res.type) {
     case "OK":
-      return <Runner run={res.value} key={main} />;
+      return <Runner run={res.value} main={main} />;
     case "ERR":
       return res.error;
   }
