@@ -70,7 +70,15 @@ const getCompileResult = (main: string): Result<string, JSX.Element> => {
       },
     });
 
-    const blob = new Blob([compiled], { type: "text/csv" });
+    // HACK!
+    const replaced = compiled.replace(
+      "Main$main.exec()",
+      `Main$main.exec(() => {
+  postMessage({ type: "exit" });
+})`
+    );
+
+    const blob = new Blob([replaced], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
 
     return { type: "OK", value: url };
@@ -87,7 +95,7 @@ const getCompileResult = (main: string): Result<string, JSX.Element> => {
   }
 };
 
-const IO: FC<{ type: string; children: ReactNode }> = ({ type, children }) => (
+const IO: FC<{ type: string; children?: ReactNode }> = ({ type, children }) => (
   <span>
     <pre style={{ display: "inline", color: "#a2a2a2" }}>[{type}]</pre>{" "}
     {children}
@@ -140,11 +148,13 @@ export const Runner: FC<{ workerUrl: string; main: string }> = ({
   workerUrl,
   main,
 }) => {
+  const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<JSX.Element[]>([]);
   const currentWorker = useRef<Worker | undefined>();
 
   function reset() {
     currentWorker.current?.terminate();
+    setRunning(false);
     setLogs([]);
   }
 
@@ -156,6 +166,7 @@ export const Runner: FC<{ workerUrl: string; main: string }> = ({
   function run() {
     reset();
 
+    setRunning(true);
     const w = new Worker(workerUrl);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +203,11 @@ export const Runner: FC<{ workerUrl: string; main: string }> = ({
           break;
         }
 
+        case "exit":
+          setRunning(false);
+          setLogs((logs) => [...logs, <IO type="exit" />]);
+          break;
+
         default:
           break;
       }
@@ -202,7 +218,18 @@ export const Runner: FC<{ workerUrl: string; main: string }> = ({
 
   return (
     <div>
-      <button onClick={run}>Run program</button>
+      {running ? (
+        <button
+          onClick={() => {
+            currentWorker.current?.terminate();
+            setRunning(false);
+          }}
+        >
+          Stop
+        </button>
+      ) : (
+        <button onClick={run}>Run program</button>
+      )}
       <br />
       {logs.length === 0 ? null : <h4>IO:</h4>}
       <ul>
