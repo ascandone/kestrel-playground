@@ -1,0 +1,26 @@
+import IO
+
+pub let fibonacci = fn n {
+  match n {
+    1 => 0,
+    2 => 1,
+    _ => fibonacci(n - 1) + fibonacci(n - 2)
+  }
+}
+
+pub let fibonacci_tco = fn n {
+  let recur = fn n, x1, x2 {
+    match n {
+      1 => x1,
+      2 => x2,
+      _ => recur(n - 1, x2, x1 + x2),
+    }
+  };
+  recur(n, 0, 1)
+}
+
+pub let main =
+  fibonacci_tco(42)
+  |> String.from_int()
+  |> IO.println()
+

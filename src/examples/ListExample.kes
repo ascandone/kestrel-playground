@@ -1,0 +1,17 @@
+import IO
+
+pub let sum_even_numbers = fn up_to {
+  List.range(0, up_to)
+  |> List.filter(fn e {
+    e % 2 == 0
+  })
+  |> List.reduce(0, fn acc, x {
+    acc + x
+  })
+}
+
+pub let main = {
+  sum_even_numbers(100)
+  |> String.from_int()
+  |> IO.println()
+}
