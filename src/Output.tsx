@@ -136,7 +136,7 @@ export const Runner: FC<{ run: VoidFunction }> = ({ run }) => {
     function onReadline() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-      setLogs((logs) => [...logs, <Readline />]);
+      setLogs((logs) => [...logs, <Readline key={Math.random()} />]);
     }
     document.addEventListener("IO:readline", onReadline);
 
