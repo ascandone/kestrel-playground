@@ -1,0 +1,14 @@
+.splitPane {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100vw;
+}
+
+.editor {
+  flex: 2;
+}
+
+.output {
+  flex: 1;
+  flex-shrink: 0;
+}
