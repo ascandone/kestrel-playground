@@ -6,7 +6,7 @@ pub let countdown = fn seconds {
   if seconds <= 0 {
     Task.none
   } else {
-    let#await _unit = IO.println(String.from_int(seconds) <> " seconds left...");
+    let#await _unit = IO.println(String.from_int(seconds) ++ " seconds left...");
     let#await _unit = Task.sleep(1000);
     countdown(seconds - 1)
   }
@@ -16,14 +16,14 @@ let max_time = 10
 
 pub let main = {
   let#await _unit = IO.println(
-    "You have " <> String.from_int(max_time) <> " seconds to input your name:",
+    "You have " ++ String.from_int(max_time) ++ " seconds to input your name:",
   );
   let#await result = Async.race([
     Task.map(IO.readline, Ok),
     Task.map(countdown(max_time), Err),
   ]);
   match result {
-    Ok(name) => IO.println("Nice to meet you, " <> name),
+    Ok(name) => IO.println("Nice to meet you, " ++ name),
     Err(Unit) => IO.println("Time out!"),
   }
 }

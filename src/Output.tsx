@@ -4,6 +4,7 @@ import {
   typecheckProject,
   errorInfoToString,
   compileProject,
+  UntypedProject,
 } from "kestrel-lang/dist";
 import { core, externs } from "./core";
 import Convert from "ansi-to-html";
@@ -28,8 +29,8 @@ const getCompileResult = (main: string): Result<string, JSX.Element> => {
     return { type: "ERR", error };
   }
 
-  const raw = {
-    Main: parsed.value,
+  const raw: UntypedProject = {
+    Main: { package: "", module: parsed.value },
     ...core,
   };
 
