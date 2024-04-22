@@ -1000,10 +1000,10 @@ json-stable-stringify-without-jsonify@^1.0.1:
   resolved "https://registry.yarnpkg.com/json-stable-stringify-without-jsonify/-/json-stable-stringify-without-jsonify-1.0.1.tgz#9db7b59496ad3f3cfef30a75142d2d930ad72651"
   integrity sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==
 
-kestrel-lang@^0.0.20:
-  version "0.0.20"
-  resolved "https://registry.yarnpkg.com/kestrel-lang/-/kestrel-lang-0.0.20.tgz#11d4039d76489b348f0484ef2dc6ae1670438bf2"
-  integrity sha512-Nhr2uRfAHMLhzf+t95bsDpRlSOG5lgdkrRl6OGh8OZ2vrIzGjVhpMRdwdqaanozEUyJybdbUtSL1w1vAhYJ7pw==
+kestrel-lang@^0.0.26:
+  version "0.0.26"
+  resolved "https://registry.yarnpkg.com/kestrel-lang/-/kestrel-lang-0.0.26.tgz#6ff1a7249d4b38c32f07b3a888b04f7832943fe2"
+  integrity sha512-ecI4QCNQR6vg36bACrOrcH2JiVKSf/wDydUXLTbWVhf+HMWgzgI3+mKcSMY9h0KNFIvdYlBhFN1l7Jc0ffMhrQ==
   dependencies:
     commander "^11.1.0"
     ohm-js "^17.1.0"
