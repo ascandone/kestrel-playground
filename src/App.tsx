@@ -6,6 +6,68 @@ import CONCURRENCY_EXAMPLE from "./examples/ConcurrencyExample.kes?raw";
 import LIST_EXAMPLE from "./examples/ListExample.kes?raw";
 import IO_EXAMPLE from "./examples/IOExample.kes?raw";
 import FIBONACCI_EXAMPLE from "./examples/FibonacciExample.kes?raw";
+import * as monaco_ from "monaco-editor";
+
+function register(monaco: typeof monaco_) {
+  monaco.languages.register({ id: "kestrel" });
+
+  monaco.languages.setMonarchTokensProvider("kestrel", {
+    defaultToken: "",
+    tokenPostfix: ".kestrel",
+
+    keywords: [
+      "if",
+      "else",
+      "fn",
+      "let",
+      "pub",
+      "import",
+      "extern",
+      "type",
+      "match",
+      "where",
+    ],
+
+    // regexes
+    symbols: /[=><!~?:&|+\-*/^%]+/,
+
+    tokenizer: {
+      root: [
+        // comments
+        [/\/\/.*$/, "comment"],
+
+        // strings
+        [/"/, { token: "string.quote", next: "@string" }],
+        [/'[^']'/, "string"],
+
+        // numbers
+        [/\b\d[\d_]*(\.\d+)?\b/, "number"],
+
+        // keywords
+        [/\b(if|else|fn|let|pub|import|extern|type|match|where)\b/, "keyword"],
+
+        // operators
+        // [/@operators/, "operator"],
+
+        // type names (Uppercase leading)
+        [/\b[A-Z][\w]*\b/, "type.identifier"],
+
+        // parameters
+        [/\b([a-z]\w*)/, "identifier"],
+
+        // unused
+        [/\b_([\w]+[?!]?)\b/, "comment.unused"],
+        [/\b_\b/, "comment"],
+      ],
+
+      string: [
+        [/[^\\"]+/, "string"],
+        [/\\./, "string.escape"],
+        [/"/, { token: "string.quote", next: "@pop" }],
+      ],
+    },
+  });
+}
 
 type ExampleId = "io" | "fibonacci" | "concurrency" | "list";
 
@@ -46,13 +108,15 @@ export const App: FC = () => {
   const monaco = useMonaco();
   useEffect(() => {
     const main = getExample(id);
+
     setMain(main);
     if (monaco) {
+      register(monaco);
       const [editor] = monaco.editor.getEditors();
       editor.setValue(main);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, monaco]);
 
   return (
     <>
@@ -65,6 +129,7 @@ export const App: FC = () => {
           <Editor
             height="100vh"
             defaultValue={main}
+            language="kestrel"
             theme="vs-dark"
             onChange={(value) => {
               if (value === undefined) {
